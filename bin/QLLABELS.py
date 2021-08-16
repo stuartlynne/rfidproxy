@@ -131,7 +131,8 @@ elif pool == 'large2':
 
 # convert PDF to PNG images using pdf2image (poppler)
 #images = convert_from_path(fname, size=(696,1109), dpi=280, grayscale=True)
-images = convert_from_path(fname, size=(1109, 696), dpi=280, grayscale=True)
+#images = convert_from_path(fname, size=(1109, 696), dpi=280, grayscale=True)
+images = convert_from_path('/dev/stdin', size=(1109, 696), dpi=280, grayscale=True)
 last = 0
 for index, image in enumerate(images):
     image.save(f'/tmp/{fname}-{index}.png')
