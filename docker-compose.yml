@@ -1,0 +1,15 @@
+
+
+version: '3.6'
+
+services:
+
+    qllabels:
+        container_name: qllabels
+        image: qllabels
+        ports:
+            - "8022:22"
+        #volumes:
+        #    - ./qlmux/qlmuxd.cfg:/usr/local/etc/qlmuxd.cfg
+        environment:
+            PYTHONUNBUFFERED: 1
