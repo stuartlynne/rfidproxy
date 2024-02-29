@@ -8,5 +8,5 @@ set -x
 
 #docker run --name qlmux_test qldocker
 
-docker-compose up 
+docker-compose up --force-recreate --renew-anon-volumes
 

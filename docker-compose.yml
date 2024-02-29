@@ -7,9 +7,11 @@ services:
     qllabels:
         container_name: qllabels
         image: qllabels
+        hostname: qllabels.local
         ports:
             - "8022:22"
         #volumes:
+        #    - ./ssh/sshd_config:/etc/ssh/sshd_config
         #    - ./qlmux/qlmuxd.cfg:/usr/local/etc/qlmuxd.cfg
         environment:
             PYTHONUNBUFFERED: 1

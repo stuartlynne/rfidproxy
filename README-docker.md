@@ -15,24 +15,31 @@ and forwards that to either:
 - qlmux
 
 
+Typical flow of data between containers:
+
+
+    RaceDB PDF --> qllabels:22 Raster --> qlmux:910N Raster --> qlXXXX:9100
+
+
 ```
 Network Internal to docker-compose environment
 
-           +-----------------------------------------------------+
-           | RaceDB                                              |
-           | ssh -J qllabels.local /usr/local/bin/QLLABELS.py $1 |
-           + ----------------------------------------------------+
-               | 
+           +------------------------------------------+
+           | RaceDB                                   |
+           | ssh racedb@qllabels.local QLLABELS.py $1 |
+           + -----------------------------------------+
+           PDF | 
                v 
-           +- 22 ---------------------------+
-           | sshd                           |
-           | QLLABELS.sh print_file         |
-           +--------------------------------+
-               |        |        |        |
+           +- 22 ----------------------------------+
+           | sshd                                  |
+           | QLLABELS.py print_file < print_file   |
+           +---------------------------------------+
+        Raster |        |        |        | 
                v        v        v        v 
            +- 9101 ----9102 ----9103 ----9103 -------------------+
            | qlmuxd                                              |
            + ----------------------------------------------------+
+        Raster |           |           |           |           |
  . . . . . . . | . . . . . | . . . . . | . . . . . | . . . . . | . . . . . .
                v           v           v           v           v
            +- 9100 --+ +- 9100 --+ +- 9100 --+ +- 9100 ---+ +-9100-----+ 

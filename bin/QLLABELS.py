@@ -13,6 +13,9 @@
 # This script will convert the PDF file to Brother Raster file(s) and 
 # send the Raster file(s) to a Brother QL style label printer or to 
 # the qlmuxd printer spooler.
+#
+# N.b. the file name is provided as a parameters, the PDF data is also
+# provided on stdin.
 # 
 # Sending the files directly to the printers on port 9100 works, but 
 # only when # there is only a single person using RaceDB. Multiple prints 
@@ -55,105 +58,157 @@ import sys
 import os
 import socket
 import subprocess
+import jsoncfg
+import json
 
 import pdf2image
 from pdf2image import convert_from_path
 
-fname = sys.argv[1]
+import sys
+import datetime
+getTimeNow = datetime.datetime.now
+
+def usage(s):
+    log('Usage: QLLABELS.py 130489203498023809_bib-719_port-8000_antenna-1_type-Frame.pdf')
+    log('       %s' % (s))
+    exit(1)
+
+def log(s):
+        print('%s %s' % (getTimeNow().strftime('%H:%M:%S'), s.rstrip()), file=sys.stderr)
+
+# get the filename provided as the first arguement
+#
+try:
+    fname = sys.argv[1]
+except:
+    usage('No filename arguement')
+
+
+#print('fname: %s' % (fname))
+
+
+# parse qlabels.cfg to get:
+#
+#   label sizes dictionary - map types to size, small or large
+#   label pools dictionary - map port-antenna to pool for small and large to a pool name
+#   label printers dictionary - hostname and port to use for a each pool
+#
+cfgs = ['/usr/local/etc/qllabels.cfg', 'qllabels.cfg']
+config = None
+for c in cfgs:
+    try:
+        config = jsoncfg.load_config(c)
+        break
+    except Exception as e:
+        log('QLLABELS: error cannot open: %s %s' % (c, e))
+        continue
+if config is None:
+    log('QLLABELS: error cannot open either: %s' % cfgs)
+    exit(1)
+
+# get the dictionaries
+sizes = config.QLLABELS_Sizes()
+pools = config.QLLABELS_Pools()
+printers = config.QLLABELS_Printers()
+
+#print('sizes: %s' % (sizes))
+#print('printers: %s' % (printers))
+#print('pools: %s' % (pools))
 
 # Split file name apart to get information about the label.
+#   bib, port, antenna and type parameters
+# e.g:
+#   230489203498023809_bib-719_port-8000_antenna-0_type-Frame.pdf
+#
 # Numeric fields are converted to numbers to allow comparisons like params['antenna'] == 1
-
-print('fname: %s' % (fname))
-# 230489203498023809_bib-719_port-8000_antenna-0_type-Frame.pdf
-
 params = { k:(int(v) if v.isdigit() else v) for k, v in (p.split('-') for p in os.path.splitext(fname)[0].split('_')[1:] ) }
-print('params: %s' % (params))
 
-# debug
-# print '\n'.join( '{}={}'.format(k,v if isinstance(v,int) else "'{}'".format(v)) for k, v in params.items() )
+#print('params: %s' % (params))
 
-# determine printer destination by label type.  Can also use 'type', 'port' and 'antenna'.
+try:
+    size = sizes[params['type']]
+except:
+    usage('Do not understand type-%s' % (params['type']))
+#print('size: %s' % (size))
 
-# XXX need to generalize this to support direct to printers
+poolMatch = "%s-%d" % (params['port'], params['antenna'])
+try:
+    pool = pools[poolMatch]
+except:
+    usage('Do not understand %s' % (poolMatch))
+#print('pool: %s' % (pool))
+
+try:
+    printerName = pool[size]
+except:
+    usage('Do not understand printerName %s' % (printerName))
+#print('printerName: %s' % (printerName))
+
+try:
+    printer = printers[printerName]
+except:
+    usage('Cannot find printerName %s' % (printerName))
+#print('printer: %s' % (printer))
+
+try:
+    hostname = printer['hostname']
+    port = printer['port']
+    model = printer['model']
+    labelsize = printer['labelsize']
+except:
+    usage('Cannot find one of hostname, port, model, labelsize: %s' % (printer))
+    usage()
+
+print('hostname: %s port: %d model: %s labelsize: %s' % (hostname, port, model, labelsize))
+
+
+# convert PDF to PNG images using pdf2image (poppler), data from stdin,
+# then save each image separately as a png.
 #
-# If qlmuxd is used we send the data to host qlmuxd with a port that specifies which printer pool:
-#
-#   pool    port
-#   small1  9101
-#   small2  9102
-#   large1  9103
-#   large1  9104
-#
-# For direct to printers, we just need a hostname and the port will be 9100
-#
-
-#host = 'qlmuxd'
-host = '127.0.0.1'
-
-# get pool, model and labelsize using the label type
-#
-if params['type'] in ('Frame', 'Shoulder', 'Emergency'):
-    pool = 'small'
-    model = 'QL-710W'
-    labelsize='62x100'
-    width = 696
-    height = 1109
-    resolution = 300
-else:
-    pool = 'large'
-    model = 'QL-1060N'
-    labelsize='102x152'
-    width = 1164
-    height = 1660
-    resolution = 300
-
-# use antenna to change the pool, e.g. small becomes small1 or small2
-#
-if params['antenna'] in ('1', '2'):
-    pool += '1'
-elif params['antenna'] in ('3', '4'):
-    pool += '2'
-else:
-    pool += '1'
-
-# based on pool, get the tcp port to send the raster data to
-#
-if pool == 'small1':
-    port = 9101
-elif pool == 'small2':
-    port = 9102
-elif pool == 'large1':
-    port = 9103
-elif pool == 'large2':
-    port = 9104
-
-
-# convert PDF to PNG images using pdf2image (poppler)
-#images = convert_from_path(fname, size=(696,1109), dpi=280, grayscale=True)
-#images = convert_from_path(fname, size=(1109, 696), dpi=280, grayscale=True)
 images = convert_from_path('/dev/stdin', size=(1109, 696), dpi=280, grayscale=True)
+
 last = 0
 for index, image in enumerate(images):
     image.save(f'/tmp/{fname}-{index}.png')
     last = index
-print('last: %d' % last)
 
-# convert PNG images to Brother Raster file, --no-cut for 0..N-1, the last file will
-# have a cut so that multiple labels will be kept together.
+# convert PNG images to Brother Raster file, Note we use --no-cut for 0..N-1, 
+# the last file will have a cut so that multiple labels will be kept together.
 #
 if last >= 1:
     for index in range(0, last):
         print('image: %d NO-CUT' % index)
-        subprocess.check_call(['brother_ql_create', '--rotate', '90', '--model', model, '--label-size', labelsize, '--no-cut', f'/tmp/{fname}-{index}.png', f'/tmp/{fname}-{index}.rast' ]) ;
-print('image: %d CUT' % last)
-subprocess.check_call(['brother_ql_create', '--rotate', '90', '--model', model, '--label-size', labelsize, f'/tmp/{fname}-{last}.png', f'/tmp/{fname}-{last}.rast' ]) ;
+        try:
+            subprocess.check_call([
+                'brother_ql_create', 
+                '--rotate', '90', 
+                '--model', model, 
+                '--label-size', labelsize, 
+                '--no-cut',
+                f'/tmp/{fname}-{index}.png', 
+                f'/tmp/{fname}-{index}.rast' ]) ;
+        except Exception as e:
+            log('brother_ql_create exception: %s' % (e))
+            exit(1)
+
+try:
+    subprocess.check_call([
+        'brother_ql_create', 
+        '--rotate', '90', 
+        '--model', model, 
+        '--label-size', labelsize, 
+        f'/tmp/{fname}-{last}.png', 
+        f'/tmp/{fname}-{last}.rast' ]) ;
+except Exception as e:
+    log('brother_ql_create exception: %s' % (e))
+    exit(1)
+
+
 
 # Send *.rast to qlmuxd or direct to printer
 #
-print('host: %s port: %d' % (host, port))
 s = socket.socket()
-s.connect((host, port))
+s.connect((hostname, port))
 for index in range(0, last+1):
     with open(f'/tmp/{fname}-{index}.rast', "rb") as f:
         while True:
