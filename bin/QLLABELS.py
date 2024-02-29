@@ -79,7 +79,7 @@ def log(s):
 # get the filename provided as the first arguement
 #
 try:
-    fname = sys.argv[1]
+    fname = os.path.basename(sys.argv[1])
 except:
     usage('No filename arguement')
 
@@ -121,9 +121,8 @@ printers = config.QLLABELS_Printers()
 #   230489203498023809_bib-719_port-8000_antenna-0_type-Frame.pdf
 #
 # Numeric fields are converted to numbers to allow comparisons like params['antenna'] == 1
-params = { k:(int(v) if v.isdigit() else v) for k, v in (p.split('-') for p in os.path.splitext(fname)[0].split('_')[1:] ) }
-
-#print('params: %s' % (params))
+params = { k:(int(v) if v.isdigit() else v) for k, v in (p.split('-') for p in os.path.splitext(fname)[0].split('_')[1:] if '-' in p ) }
+print('params: %s' % (params))
 
 try:
     size = sizes[params['type']]
@@ -169,8 +168,11 @@ images = convert_from_path('/dev/stdin', size=(1109, 696), dpi=280, grayscale=Tr
 
 last = 0
 for index, image in enumerate(images):
-    image.save(f'/tmp/{fname}-{index}.png')
+    pngfile = f'/tmp/{fname}-{index}.png'
+    print(pngfile)
+    image.save(pngfile)
     last = index
+exit()
 
 # convert PNG images to Brother Raster file, Note we use --no-cut for 0..N-1, 
 # the last file will have a cut so that multiple labels will be kept together.
