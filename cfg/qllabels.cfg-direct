@@ -1,0 +1,19 @@
+
+// QLLABELS.py configuration
+//
+
+{
+    QLLABELS_Hosts: {
+        "ql710w1" : { hostname:"192.168.40.44", model:"Brother QL-710W",  port:9100},
+        "ql710w2" : { hostname:"192.168.40.42", model:"Brother QL-710W",  port:9100},
+        "ql710w3" : { hostname:"192.168.40.41", model:"Brother QL-710W",  port:9100},
+        "ql1060n1": { hostname:"192.168.40.45", model:"Brother QL-1060N", port:9100},
+        "ql1060n2": { hostname:"192.168.40.39", model:"Brother QL-1060N", port:9100},
+    },
+    QLLABELS_Printers: {
+        "8000-0": { small: "ql710w1", large: "ql1060n1"},
+        "8000-1": { small: "ql710w2", large: "ql1060n1"},
+        "8000-2": { small: "ql710w2", large: "ql1060n2"},
+        "8000-3": { small: "ql710w2", large: "ql1060n2"},
+    },
+}
