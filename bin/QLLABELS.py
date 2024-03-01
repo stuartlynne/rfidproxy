@@ -60,6 +60,8 @@ import socket
 import subprocess
 import jsoncfg
 import json
+import io
+import traceback
 
 import pdf2image
 from pdf2image import convert_from_path
@@ -82,9 +84,6 @@ try:
     fname = os.path.basename(sys.argv[1])
 except:
     usage('No filename arguement')
-
-
-#print('fname: %s' % (fname))
 
 
 # parse qlabels.cfg to get:
@@ -122,32 +121,35 @@ printers = config.QLLABELS_Printers()
 #
 # Numeric fields are converted to numbers to allow comparisons like params['antenna'] == 1
 params = { k:(int(v) if v.isdigit() else v) for k, v in (p.split('-') for p in os.path.splitext(fname)[0].split('_')[1:] if '-' in p ) }
-print('params: %s' % (params))
+#print('params: %s' % (params))
 
 try:
     size = sizes[params['type']]
 except:
     usage('Do not understand type-%s' % (params['type']))
-#print('size: %s' % (size))
 
 poolMatch = "%s-%d" % (params['port'], params['antenna'])
 try:
     pool = pools[poolMatch]
 except:
     usage('Do not understand %s' % (poolMatch))
-#print('pool: %s' % (pool))
 
 try:
     printerName = pool[size]
 except:
     usage('Do not understand printerName %s' % (printerName))
-#print('printerName: %s' % (printerName))
 
 try:
     printer = printers[printerName]
 except:
     usage('Cannot find printerName %s' % (printerName))
-#print('printer: %s' % (printer))
+
+imagesize = {
+    '62': (1109, 696),
+    '62x100': (1109, 696),
+    '102': (1660, 1164),
+    '102x152': (1660, 1164),
+}
 
 try:
     hostname = printer['hostname']
@@ -158,71 +160,54 @@ except:
     usage('Cannot find one of hostname, port, model, labelsize: %s' % (printer))
     usage()
 
-print('hostname: %s port: %d model: %s labelsize: %s' % (hostname, port, model, labelsize))
+
+#print('hostname: %s port: %d model: %s labelsize: %s imagesize: %s' % (hostname, port, model, labelsize, imagesize[labelsize],))
 
 
 # convert PDF to PNG images using pdf2image (poppler), data from stdin,
 # then save each image separately as a png.
 #
-images = convert_from_path('/dev/stdin', size=(1109, 696), dpi=280, grayscale=True)
+#images = convert_from_path('/dev/stdin', size=(1109, 696), dpi=280, grayscale=True)
+#images = convert_from_path('/dev/stdin', size=(1660, 1164), dpi=280, grayscale=True)
 
-last = 0
-for index, image in enumerate(images):
-    pngfile = f'/tmp/{fname}-{index}.png'
-    print(pngfile)
-    image.save(pngfile)
-    last = index
-exit()
+# convert pdf from stdin into list of pillow images
+images = convert_from_path('/dev/stdin', size=imagesize[labelsize], dpi=280, grayscale=True)
+
+#last = 0
+#for index, image in enumerate(images):
+#    pngfile = f'/tmp/{fname}-{index}.png'
+#    print(pngfile)
+#    image.save(pngfile)
+#    last = index
 
 # convert PNG images to Brother Raster file, Note we use --no-cut for 0..N-1, 
 # the last file will have a cut so that multiple labels will be kept together.
 #
-if last >= 1:
-    for index in range(0, last):
-        print('image: %d NO-CUT' % index)
-        try:
-            subprocess.check_call([
-                'brother_ql_create', 
-                '--rotate', '90', 
-                '--model', model, 
-                '--label-size', labelsize, 
-                '--no-cut',
-                f'/tmp/{fname}-{index}.png', 
-                f'/tmp/{fname}-{index}.rast' ]) ;
-        except Exception as e:
-            log('brother_ql_create exception: %s' % (e))
-            exit(1)
 
-try:
-    subprocess.check_call([
-        'brother_ql_create', 
-        '--rotate', '90', 
-        '--model', model, 
-        '--label-size', labelsize, 
-        f'/tmp/{fname}-{last}.png', 
-        f'/tmp/{fname}-{last}.rast' ]) ;
-except Exception as e:
-    log('brother_ql_create exception: %s' % (e))
-    exit(1)
-
-
-
-# Send *.rast to qlmuxd or direct to printer
-#
-s = socket.socket()
-s.connect((hostname, port))
-for index in range(0, last+1):
-    with open(f'/tmp/{fname}-{index}.rast', "rb") as f:
-        while True:
-            bytes_read = f.read(4096)
-            if not bytes_read:
-                break
-            s.sendall(bytes_read)
-s.close()
-
-# remove the intermediate files
-#
-#for index in range(0, last):
-#    os.remove('/tmp/{fname}-{index}.png')
-#    os.remove('/tmp/{fname}-{index}.rast')
+last = len(images)
+#print('brother_ql tcp://%s:%s last: %s' % (hostname, port, last), file=sys.stderr)
+args_base = [ 'brother_ql', '--printer', f"tcp://{hostname}:{port}",
+        '--model', model, 'print', '--rotate', '90', '--label', labelsize, 
+        ]
+for index, image in enumerate(images):
+    pngfile = f'/tmp/{fname}-{index}.png'
+    #print(pngfile, file=sys.stderr))
+    image.save(pngfile)
+    args = args_base.copy()
+    if index < (last -1):
+        args.append('--no-cut')
+    args.append(pngfile)
+    try:
+        subprocess.run(
+            args,
+            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+          ) ;
+    except Exception as e:
+        print('exception: e: %s' % (e), file=sys.stderr)
+        print('traceback: %s' % (traceback.format_exc(),))
+        #log('brother_ql_create exception: %s' % (e))
+        #exit(1)
+    
+    os.remove(pngfile)
 
