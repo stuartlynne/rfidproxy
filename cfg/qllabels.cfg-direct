@@ -3,17 +3,26 @@
 //
 
 {
-    QLLABELS_Hosts: {
-        "ql710w1" : { hostname:"192.168.40.44", model:"Brother QL-710W",  port:9100},
-        "ql710w2" : { hostname:"192.168.40.42", model:"Brother QL-710W",  port:9100},
-        "ql710w3" : { hostname:"192.168.40.41", model:"Brother QL-710W",  port:9100},
-        "ql1060n1": { hostname:"192.168.40.45", model:"Brother QL-1060N", port:9100},
-        "ql1060n2": { hostname:"192.168.40.39", model:"Brother QL-1060N", port:9100},
+
+    QLLABELS_Sizes: {
+        "Tag": "small",
+        "Frame": "small",
+        "Shoulder": "small",
+        "Emergency": "small",
+        "Body": "large",
+    },
+    QLLABELS_Pools: {
+        "8000-0": { small: "ql710w1", large: "ql1060n1"},
+        "8000-1": { small: "ql710w1", large: "ql1060n1"},
+        "8000-2": { small: "ql710w1", large: "ql1060n1"},
+        "8000-3": { small: "ql710w2", large: "ql1060n2"},
+        "8000-4": { small: "ql710w2", large: "ql1060n2"},
     },
     QLLABELS_Printers: {
-        "8000-0": { small: "ql710w1", large: "ql1060n1"},
-        "8000-1": { small: "ql710w2", large: "ql1060n1"},
-        "8000-2": { small: "ql710w2", large: "ql1060n2"},
-        "8000-3": { small: "ql710w2", large: "ql1060n2"},
+        "ql710w1" : { hostname:"192.168.40.44", port:9100, model:"QL-710W",  labelsize: "62x100"},
+        "ql710w2" : { hostname:"192.168.40.42", port:9100, model:"QL-710W",  labelsize: "62x100"},
+        "ql710w3" : { hostname:"192.168.40.41", port:9100, model:"QL-710W",  labelsize: "62x100"},
+        "ql1060n1": { hostname:"192.168.40.45", port:9100, model:"QL-1060N", labelsize: "102x152"},
+        "ql1060n2": { hostname:"192.168.40.39", port:9100, model:"QL-1060N", labelsize: "102x152"},
     },
 }
