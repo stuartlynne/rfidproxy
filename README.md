@@ -1,10 +1,9 @@
 # qllabels
+# Fri Mar  1 09:30:06 AM PST 2024
 # Fri Aug 13 13:54:46 PDT 2021
 
 This implements *QLLABELS.py*, a script for *RaceDB* can use to print labels to
 *Brother* *QL* style network label printers.
-
-
 
 This script will convert the PDF file to Brother Raster file(s) and
 send the Raster file(s) to a Brother QL style label printer or to
@@ -69,10 +68,15 @@ support packages pdf2image, poppler-utils and brother_ql
 QLLABELS.py usage:
 
 In the RaceDB System Info Edit screen:
-
+'''
   Cmd used to print Bib Tag (parameter is PDF file)
 
-      [  /home/RaceDB/scripts/QLLABELS $1 ]
+      [  ssh -o StrictHostKeyChecking=no qllabels.local QLLABELS.sh $1 ]
+'''
+
+N.b. StrictHostKeyChecking will keep ssh from complaining about the qllables.local host
+key. That gets changed when the image is rebuilt, and if this is not used then an interactive
+connection would be required to allow the current key to be added to list of known hosts.
 
 
 QLLABELS uses the following to convert the PDF file to Brother Raster format and
@@ -120,4 +124,21 @@ Each pair of operators (1/2 and 3/4) had two printers (one of each size)
 dedicated to them. A third ql710w printer in the middle acts as a backup 
 for the two small printers on each side. Each of the large printers acts
 as a backup for the other.
+
+
+## 2024 update
+
+The current version of *brother_ql* has made minor changes, importantly the PDF image size 
+must now match. Add imagesize dict to get correct image size for each label size
+for use by convert_from_path when converting PDF to PNG.
+
+```
+imagesize = {
+    '62x100': (1109, 696),
+    '102x152': (1660, 1164),
+}
+
+images = convert_from_path('/dev/stdin', size=imagesize[labelsize], dpi=280, grayscale=True)
+
+```
 
