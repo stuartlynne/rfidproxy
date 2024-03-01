@@ -64,7 +64,7 @@ import io
 import traceback
 
 import pdf2image
-from pdf2image import convert_from_path
+from pdf2image import convert_from_path, convert_from_bytes
 
 import sys
 import datetime
@@ -160,42 +160,24 @@ except:
     usage('Cannot find one of hostname, port, model, labelsize: %s' % (printer))
     usage()
 
-
-#print('hostname: %s port: %d model: %s labelsize: %s imagesize: %s' % (hostname, port, model, labelsize, imagesize[labelsize],))
-
-
-# convert PDF to PNG images using pdf2image (poppler), data from stdin,
-# then save each image separately as a png.
-#
-#images = convert_from_path('/dev/stdin', size=(1109, 696), dpi=280, grayscale=True)
-#images = convert_from_path('/dev/stdin', size=(1660, 1164), dpi=280, grayscale=True)
-
-# convert pdf from stdin into list of pillow images
-images = convert_from_path('/dev/stdin', size=imagesize[labelsize], dpi=280, grayscale=True)
-
-#last = 0
-#for index, image in enumerate(images):
-#    pngfile = f'/tmp/{fname}-{index}.png'
-#    print(pngfile)
-#    image.save(pngfile)
-#    last = index
+# convert directly from stdio.buffer, output to pillow images list
+images = convert_from_bytes(sys.stdin.buffer.read(), size=imagesize[labelsize], dpi=280, grayscale=True)
 
 # convert PNG images to Brother Raster file, Note we use --no-cut for 0..N-1, 
 # the last file will have a cut so that multiple labels will be kept together.
 #
 
-last = len(images)
-#print('brother_ql tcp://%s:%s last: %s' % (hostname, port, last), file=sys.stderr)
-args_base = [ 'brother_ql', '--printer', f"tcp://{hostname}:{port}",
-        '--model', model, 'print', '--rotate', '90', '--label', labelsize, 
-        ]
+args_base = [ 
+    'brother_ql', '--printer', f"tcp://{hostname}:{port}",
+    '--model', model, 'print', '--rotate', '90', '--label', labelsize, 
+    ]
 for index, image in enumerate(images):
-    pngfile = f'/tmp/{fname}-{index}.png'
-    #print(pngfile, file=sys.stderr))
-    image.save(pngfile)
+    # save image to png file
     args = args_base.copy()
-    if index < (last -1):
+    if index < (len(images) -1):
         args.append('--no-cut')
+    pngfile = f'/tmp/{fname}-{index}.png'
+    image.save(pngfile)
     args.append(pngfile)
     try:
         subprocess.run(
@@ -208,6 +190,6 @@ for index, image in enumerate(images):
         print('traceback: %s' % (traceback.format_exc(),))
         #log('brother_ql_create exception: %s' % (e))
         #exit(1)
-    
+    # remove the tmp file 
     os.remove(pngfile)
 
