@@ -6,7 +6,7 @@ set -x
 #cp -v ../tests .
 
 docker image rm -f qllabels
-docker build --no-cache -f Dockerfile -t "stuartlynne/qllabels:0.6" .
+docker build --no-cache -f Dockerfile -t "stuartlynne/qllabels:0.7" .
 
 #rm -rf QLLABELS.py tests
 
