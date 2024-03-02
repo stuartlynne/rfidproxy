@@ -8,13 +8,13 @@
 #
 #   Cmd used to print Bib Tag (parameter is PDF file)
 #
-#       [  /home/RaceDB/scripts/QLLABELS.py $1 ]
+#       [  ssh racedb@qlabels.local  QLLABELS.py $1 ]
 # 
 # This script will convert the PDF file to Brother Raster file(s) and 
 # send the Raster file(s) to a Brother QL style label printer or to 
 # the qlmuxd printer spooler.
 #
-# N.b. the file name is provided as a parameters, the PDF data is also
+# N.b. the file name is provided as a parameter, the PDF data is 
 # provided on stdin.
 # 
 # Sending the files directly to the printers on port 9100 works, but 
@@ -32,13 +32,6 @@
 #
 # This script will get labels printed (either directly or via qlmuxd) 
 # far faster than CUPS using the standard Brother QL support files.
-#
-# This script will:
-#
-#   1. Convert $1 to $1-$PAGENO.png for each page in the PDF file
-#   2. Convert each page to $1-$PAGENO.rast
-#   3. Equivalent of cat $1-*.rast | netcat $PRINTER_HOST $PRINTER_PORT
-#
 #
 # The argument provided is the file name which contains information about what is to 
 # be printed. E.g.:
@@ -68,6 +61,11 @@ from pdf2image import convert_from_path, convert_from_bytes
 
 import sys
 import datetime
+
+from brother_ql.conversion import convert
+from brother_ql.backends.helpers import send
+from brother_ql.raster import BrotherQLRaster
+
 getTimeNow = datetime.datetime.now
 
 def usage(s):
@@ -171,25 +169,30 @@ args_base = [
     'brother_ql', '--printer', f"tcp://{hostname}:{port}",
     '--model', model, 'print', '--rotate', '90', '--label', labelsize, 
     ]
+
+# use brother_ql to convert the pillow images to raster format instructions for the printer
+# and send them via the network to the printer (or qlmuxd).
+#
+backend = 'network'
+printer = f"tcp://{hostname}:{port}"
+kwargs = { 'rotate': '90', 'cut': False, 'label': labelsize, }
+#print('brother_ql: backend: %s printer: %s model: %s kwargs: %s' % (backend, printer, model, kwargs), file=sys.stderr)
+#print('*********************', file=sys.stderr)
+
+# N.b. In theory we can convert and print all labels with one convert/send, but 
+# I cannot figure out how to get two labels printed with a single cut at the end.
+#
+#    qlr = BrotherQLRaster(model)
+#    instructions = convert(qlr, images, **kwargs)
+#    send(instructions=instructions, printer_identifier=printer, backend_identifier=backend, blocking=True)
+#
 for index, image in enumerate(images):
-    # save image to png file
-    args = args_base.copy()
-    if index < (len(images) -1):
-        args.append('--no-cut')
-    pngfile = f'/tmp/{fname}-{index}.png'
-    image.save(pngfile)
-    args.append(pngfile)
-    try:
-        subprocess.run(
-            args,
-            stderr=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-          ) ;
-    except Exception as e:
-        print('exception: e: %s' % (e), file=sys.stderr)
-        print('traceback: %s' % (traceback.format_exc(),))
-        #log('brother_ql_create exception: %s' % (e))
-        #exit(1)
-    # remove the tmp file 
-    os.remove(pngfile)
+    if index == len(images) - 1:
+        #print('brother_ql[%d] Last' % (index), file=sys.stderr)
+        kwargs['cut'] = True
+    #else:
+    #    print('brother_ql[%d] ' % (index), file=sys.stderr)
+    qlr = BrotherQLRaster(model)
+    instructions = convert(qlr, [image], **kwargs)
+    send(instructions=instructions, printer_identifier=printer, backend_identifier=backend, blocking=True)
 
