@@ -47,15 +47,12 @@
 # the TCP port that the server responds to, e.g. 8000 or 8001 etc.
 #
 
+__version__ = "1.0.1"
+
 import sys
 import os
 import socket
-import subprocess
-import jsoncfg
-import json
-import io
 import traceback
-import logging
 
 import pdf2image
 from pdf2image import convert_from_path, convert_from_bytes
@@ -84,34 +81,6 @@ try:
 except:
     usage('No filename argument')
 
-
-# parse qlabels.cfg to get:
-#
-#   label sizes dictionary - map types to size, small or large
-#   label pools dictionary - map port-antenna to pool for small and large to a pool name
-#   label printers dictionary - hostname and port to use for a each pool
-#
-#cfgs = ['/usr/local/etc/qllabels.cfg', 'qllabels.cfg']
-#config = None
-#for c in cfgs:
-#    try:
-#        config = jsoncfg.load_config(c)
-#        break
-#    except Exception as e:
-#        log('QLLABELS: error cannot open: %s %s' % (c, e))
-#        continue
-#if config is None:
-#    log('QLLABELS: error cannot open either: %s' % cfgs)
-#    exit(1)
-
-# get the dictionaries
-#sizes = config.QLLABELS_Sizes()
-#pools = config.QLLABELS_Pools()
-#printers = config.QLLABELS_Printers()
-
-#print('sizes: %s' % (sizes))
-#print('printers: %s' % (printers))
-#print('pools: %s' % (pools))
 
 # Split file name apart to get information about the label.
 #   bib, port, antenna and type parameters
