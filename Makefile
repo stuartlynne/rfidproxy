@@ -8,7 +8,7 @@ all:
 
 clean:
 	rm -f */*pyc
-	rm -rf build dist qlmux.egg-info
+	rm -rf build dist *.egg-info
 
 .PHONY: sdist install bdist
 
