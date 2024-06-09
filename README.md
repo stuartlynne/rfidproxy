@@ -2,16 +2,12 @@
 # Fri Mar  1 09:30:06 AM PST 2024
 # Fri Aug 13 13:54:46 PDT 2021
 
-This implements *QLLABELS.py*, a script for *RaceDB* can use to print labels to
+This implements *qllabels.py*, a script for *RaceDB* can use to print labels to
 *Brother* *QL* style network label printers.
 
 This script will convert the PDF file to Brother Raster file(s) and
 send the Raster file(s) to a Brother QL style label printer or to
 the qlmuxd printer spooler.
-
-Sending the files directly to the printers on port 9100 works, but
-only when # there is only a single person using RaceDB. Multiple prints
-to a QL printer will result in over lapping labels.
 
 The qlmuxd program manages pools of QL printers and will spool
 the data allowing multiple people to print to them, with support
@@ -22,15 +18,15 @@ file data that would be sent to the printers on port 9100, but
 uses ports 910N to allow us to specify which pool of printers
 to use.
 
-This script will get labels printed (either directly or via qlmuxd)
-far faster than CUPS using the standard Brother QL support files.
+This script will print labels
+faster than CUPS using the standard Brother QL support files.
+Typical imaging and data transfer times are under a half second.
 
 This script will:
 
-1. Convert $1 to $1-$PAGENO.png for each page in the PDF file
-2. Convert each page to $1-$PAGENO.rast
-3. Equivalent of cat $1-\*.rast | netcat $PRINTER\_HOST $PRINTER\_PORT
-
+- convert the PDF data on <STDIN> into a an image
+- convert the image into Brother Raster Data
+- send the raster data to one of four ports 9101, 9102, 9103, 9104
 
 The argument provided is the file name which contains information about what is to
 be printed. E.g.:
@@ -38,59 +34,53 @@ be printed. E.g.:
       230489203498023809\_bib-356\_port-8000\_antenna-2\_type-Frame.pdf
 ```
 - "type" is one of Frame, Body, Shoulder or Emergency.
-- "port" is the RaceDB server port.
+- "port" is the RaceDB RFID server port.
 - "antenna" is the antenna of the user.
 
 The combination of server port and antenna allows different printers to
-be used for different registration stations. The server port refers to
-the TCP port that the server responds to, e.g. 8000 or 8001 etc.
+be used for different registration stations. 
+
+The destination port is determined by the RaceDB RFID server port
+
+| RFID | Target | Size | Type }
+| -- | -- | -- | -- |
+| 1 | 9101 | 2"x4" | Frame/Shoulder |
+| 2 | 9102 | 2"x4" | Frame/Shoulder |
+| 3 | 9103 | 4"x6" | Bib |
+| 4 | 9104 | 4"x6" | Bib |
 
 
+## RaceDB
 
+qllabels.py setup in RaceDB.
 
-For limited (1 person) use QLLABELS.py can
+There are two ways to use qllabels.py.
 
-This script will install QLLABELS.py and required libraries into a RaceDB container.
+1. It can be installed in the RaceDB container and 
+used directly. The qllabels.py script will connect to ports 9101-9104 to send data.
+This assumes that the qlmux_proxy container is running to accept the data.
 
-QLLABELS.py implements support for RaceDB printing Frame numbers and Bib numers using
-Brother QL style network label printers, e.g.:
+2. It can be accessed via ssh in the qlmux_proxy container. This is slightly less efficient
+as the data needs to be copied via ssh into the second container and then processed.
 
-      QL-710w - frame, shoulder, emergency contact
-      QL-1060N - bib numbers
+In the RaceDB System Info Edit screen one of the following:
 
-Run this script in the RaceDB/docker directory to install the qllabels git archive
-into the racedb container after creating the racedb container (typically after
-using ./racedb run).
-
-Running this script will install /home/RaceDB/scripts/QLLABELS.py and required
-support packages pdf2image, poppler-utils and brother_ql
-
-QLLABELS.py usage:
-
-In the RaceDB System Info Edit screen:
+1. direct install
 '''
   Cmd used to print Bib Tag (parameter is PDF file)
 
-      [  ssh -o StrictHostKeyChecking=no qllabels.local QLLABELS.sh $1 ]
+      [ qlabels.py $1 ]
+'''
+2. ssh
+'''
+  Cmd used to print Bib Tag (parameter is PDF file)
+
+      [  ssh -o StrictHostKeyChecking=no qlmux_proxu.local qlabels.py $1 ]
 '''
 
-N.b. StrictHostKeyChecking will keep ssh from complaining about the qllables.local host
+N.b. StrictHostKeyChecking will keep ssh from complaining about the *qlmux_proxy.local* host
 key. That gets changed when the image is rebuilt, and if this is not used then an interactive
-connection would be required to allow the current key to be added to list of known hosts.
-
-
-QLLABELS uses the following to convert the PDF file to Brother Raster format and
-sends that to a target host and port.
-
-      pdf2image is used to convert PDF to PNG
-      brother_ql is used to convert PNG to Brother Raster
-
-The QLLABELS.py script can be customized to send the resulting raster files to
-either a local (pair) of printers (hostname or ip address):
-
-      size    hostname        port
-      small   ql710w          9100
-      large   ql1060n         9100
+connection would be required to allow the current key to be added to the list of known hosts.
 
 Alternately if the qlmuxd program is installed in another container it can be used.
 
@@ -101,44 +91,15 @@ large printers with fail over support and prevents over lapping requests. This
 allows multiple operators to issue print requests and have the labels printed
 at a specific printer.
 
-A common configuration used by four operators:
-
-| Operator |  Large  | Backup  | Small   | Backup  |
-|:--------:|:-------:|:-------:|:-------:|:-------:|
-| antenna1 | ql10601 | ql10602 | ql710w1 | ql710w3 |
-| antenna2 | ql10601 | ql10602 | ql710w1 | ql710w3 |
-| antenna3 | ql10602 | ql10601 | ql710w2 | ql710w3 |
-| antenna4 | ql10602 | ql10601 | ql710w2 | ql710w3 |
-
-Sample host file:
-
-| IP Address    | Hostname |
-|:--------------|:--------:|
-| 192.168.40.41 | ql710w1  |
-| 192.168.40.42 | ql710w2  |
-| 192.168.40.43 | ql710w3  |
-| 192.168.40.44 | ql1060n1 |
-| 192.168.40.45 | ql1060n2 |
-
-Each pair of operators (1/2 and 3/4) had two printers (one of each size)
-dedicated to them. A third ql710w printer in the middle acts as a backup 
-for the two small printers on each side. Each of the large printers acts
-as a backup for the other.
+## Related Github Archvies
+| Description | GitHub Archive |
+| -- | -- |
+|qlmux\_proxy | https://github.com/stuartlynne/qlmux_proxy|
+|qllabels | https://github.com/stuartlynne/qllabels/|
+|traefik\_racedb | https://github.com/stuartlynne/traefik_racedb|
+|racedb\_qlmux | https://github.com/stuartlynne/racedb_qlmux|
+|wimsey\_timing | https://github.com/stuartlynne/wimsey_timing|
+  
 
 
-## 2024 update
-
-The current version of *brother_ql* has made minor changes, importantly the PDF image size 
-must now match. Add imagesize dict to get correct image size for each label size
-for use by convert_from_path when converting PDF to PNG.
-
-```
-imagesize = {
-    '62x100': (1109, 696),
-    '102x152': (1660, 1164),
-}
-
-images = convert_from_path('/dev/stdin', size=imagesize[labelsize], dpi=280, grayscale=True)
-
-```
 
