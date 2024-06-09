@@ -41,7 +41,7 @@ be used for different registration stations.
 
 The destination port is determined by the RaceDB RFID server port
 
-| RFID | Target | Size | Type }
+| RFID | Target | Size | Type |
 | -- | -- | -- | -- |
 | 1 | 9101 | 2"x4" | Frame/Shoulder |
 | 2 | 9102 | 2"x4" | Frame/Shoulder |
@@ -91,6 +91,7 @@ allows multiple operators to issue print requests and have the labels printed
 at a specific printer.
 
 ## Related Github Archvies
+
 | Description | GitHub Archive |
 | -- | -- |
 |qlmux\_proxy | https://github.com/stuartlynne/qlmux_proxy|
@@ -98,6 +99,9 @@ at a specific printer.
 |traefik\_racedb | https://github.com/stuartlynne/traefik_racedb|
 |racedb\_qlmux | https://github.com/stuartlynne/racedb_qlmux|
 |wimsey\_timing | https://github.com/stuartlynne/wimsey_timing|
+
+## Contact
+stuart.lynne@gmail.com
   
 
 
