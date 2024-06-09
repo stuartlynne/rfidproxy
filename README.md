@@ -55,22 +55,24 @@ qllabels.py setup in RaceDB.
 
 There are two ways to use qllabels.py.
 
-1. It can be installed in the RaceDB container and 
+### Direct Instal
+It can be installed in the RaceDB container and 
 used directly. The qllabels.py script will connect to ports 9101-9104 to send data.
 This assumes that the qlmux_proxy container is running to accept the data.
 
-2. It can be accessed via ssh in the qlmux_proxy container. This is slightly less efficient
-as the data needs to be copied via ssh into the second container and then processed.
-
-In the RaceDB System Info Edit screen one of the following:
-
-1. direct install
 '''
   Cmd used to print Bib Tag (parameter is PDF file)
 
       [ qlabels.py $1 ]
 '''
-2. ssh
+
+### SSH
+It can be accessed via ssh in the qlmux_proxy container. This is slightly less efficient
+because the data needs to be transferred via ssh into the second container before 
+being processed.
+
+In the RaceDB System Info Edit screen one of the following:
+
 '''
   Cmd used to print Bib Tag (parameter is PDF file)
 
@@ -81,14 +83,6 @@ N.b. StrictHostKeyChecking will keep ssh from complaining about the *qlmux_proxy
 key. That gets changed when the image is rebuilt, and if this is not used then an interactive
 connection would be required to allow the current key to be added to the list of known hosts.
 
-Alternately if the qlmuxd program is installed in another container it can be used.
-
-Direct access to the printers is only suitable for low use, i.e. one registration
-operator. Multiple operators issuing over lapping print jobs will result in bad 
-labels being printed. The qlmuxd program implements printer pools for small and 
-large printers with fail over support and prevents over lapping requests. This
-allows multiple operators to issue print requests and have the labels printed
-at a specific printer.
 
 ## Related Github Archvies
 
