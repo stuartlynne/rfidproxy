@@ -1,6 +1,5 @@
 # qllabels
-# Fri Mar  1 09:30:06 AM PST 2024
-# Fri Aug 13 13:54:46 PDT 2021
+## Fri Aug 13 13:54:46 PDT 2021
 
 This implements *qllabels.py*, a script for *RaceDB* can use to print labels to
 *Brother* *QL* style network label printers.
