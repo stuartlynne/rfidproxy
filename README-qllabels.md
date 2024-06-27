@@ -85,6 +85,6 @@ key. That gets changed when the image is rebuilt, and if this is not used then a
 connection would be required to allow the current key to be added to the list of known hosts.
 
 
-[Related Projects](related.md)
+## [Related Projects](related.md)
 
 
