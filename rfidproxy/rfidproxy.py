@@ -192,8 +192,8 @@ class TCPProxy(Thread):
             log("TCPProxy.on_accept[%s] Closing connection with client side %s" % (self.proxy_address, clientaddr), )
             clientsock.close()
 
+def main():
 
-if __name__ == '__main__':
 
     rfid_listen_address = '127.0.0.1'
     rfid_listen_port = 5084
@@ -205,10 +205,10 @@ if __name__ == '__main__':
         rfid_proxy_port = int(sys.argv[4])
     else:
         load_dotenv('/etc/rfidproxy/rfidproxy.env')
-        rfid_listen_address = os.getenv('RFID_LISTEN_HOST')
-        rfid_listen_port = os.getenv('RFID_LISTEN_PORT')
-        rfid_proxy_address = os.getenv('rfid_proxy_address')
-        rfid_proxy_port = os.getenv('RFID_PROXY_PORT')
+        rfid_listen_address = os.getenv('RFID_LISTEN_HOST', default='127.0.0.1',)
+        rfid_listen_port = int(os.getenv('RFID_LISTEN_PORT', default='5084', ))
+        rfid_proxy_address = os.getenv('rfid_proxy_address', default='127.0.0.1',)
+        rfid_proxy_port = int(os.getenv('RFID_PROXY_PORT', default='5085',))
 
     
     print('rfid_listen_address:', rfid_listen_address)
@@ -239,5 +239,7 @@ if __name__ == '__main__':
     log('server stopped', )
 
 
+if __name__ == '__main__':
+    main()
 
 
