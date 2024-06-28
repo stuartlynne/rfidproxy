@@ -1,4 +1,14 @@
 #!/usr/bin/python3
+# 
+# rfidproxy.py
+# stuart.lynne@gmail.com
+# 
+# Listen on a set of ports, 1-4
+#   127.0.0.N:5084
+#
+# Proxy to a set of ports:
+#   0.0.0.0:5085+N
+#
 import os
 import socket
 import select
@@ -54,6 +64,7 @@ def set_keepalive(sock, after_idle_sec=60, interval_sec=60, max_fails=5):
     if plat == 'Windows':
         return set_keepalive_win(sock, after_idle_sec, interval_sec, max_fails)
     raise RuntimeError('Unsupport platform {}'.format(plat))
+
 class Forward:
     def __init__(self):
         self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -70,7 +81,7 @@ class Forward:
 
 class TCPProxy(Thread):
 
-    def __init__(self, listen_address='127.0.0.1', listen_port=None, proxy_address=None, proxy_port=None, stopEvent=None, changeEvent=None, tcpStatusQueue=None):
+    def __init__(self, listen_address='127.0.0.1', listen_port=None, proxy_address=None, proxy_port=None, stopEvent=None, changeEvent=None, tcpStatusQueue=None, loop=False):
         super(TCPProxy, self).__init__()
         self.input_list = []
         self.channel = {}
@@ -78,7 +89,7 @@ class TCPProxy(Thread):
         set_keepalive(self.server, after_idle_sec=4, interval_sec=1, max_fails=3)
         self.server.settimeout(5)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        print('bind: %s:%s' % ( listen_address, listen_port))
+        log('bind: %s:%s' % ( listen_address, listen_port))
         self.server.bind((listen_address, listen_port))
         self.server.listen(200)
         self.listen_address = listen_address
@@ -88,7 +99,8 @@ class TCPProxy(Thread):
         self.stopEvent = stopEvent
         self.changeEvent = changeEvent
         self.tcpStatusQueue = tcpStatusQueue
-        log('TCPProxy.__init__[%s:%s] proxy_port: %s' % (self.listen_address, self.proxy_address, self.proxy_port), )
+        self.loop = loop
+        log('TCPProxy.__init__[%s:%s] proxy_port: %s loop: %s' % (self.listen_address, self.proxy_address, self.proxy_port, self.loop), )
 
         self.dataReceived = 0
         self.messagesReceived = 0
@@ -109,74 +121,88 @@ class TCPProxy(Thread):
         self.input_list = [self.server]
         self.channels = {}
         # run until stopEvent is set
-        while not self.stopEvent.is_set():
-            inputready, outputready, exceptready = select.select(self.input_list, [], [], 1)
+        try:
+            while not self.stopEvent.is_set():
+                inputready, outputready, exceptready = select.select(self.input_list, [], [], 2)
 
-            # if stopEvent is set, close all proxied connections 
-            if self.stopEvent.is_set():
-                log('TCPProxy.run[%s]: changeEvent is set' % (self.proxy_address), )
-                self.close_all()
-                #for k, v in self.channels.items():
-                #    v.close()
-                #self.channels = {}
-                #self.input_list = [self.server]
-                continue
-
-            # normal operation, process received data 
-            for s in inputready:
-
-                log('TCPProxy.run[%s]: AAAA' % (self.proxy_address), )
-
-                # New connection
-                if s == self.server:
-                    self.on_accept()
-                    log('TCPProxy.run[%s]: accepted' % (self.proxy_address), )
-                    self.update({'status': 'connected'})
-                    break
-
-                # Incoming data to be forwarded
-                try:
-                    data = s.recv(4096)
-                except OSError as e:
-                    log('TCPProxy.run[%s]: OSError %s' % (self.proxy_address, e), )
-                    data = b''
-                except ConnectionResetError as e:
-                    log('TCPProxy.run[%s]: ConnectionResetError %s' % (self.proxy_address, e), )
-                    data = b''
-
-                # No data means the connection is closed
-                if len(data):
-                    self.dataReceived += len(data)
-                    self.messagesReceived += 1
-                    self.update({'dataReceived': self.dataReceived, 'messagesReceived': self.messagesReceived})
-                    self.channels[s].send(data)
+                # if stopEvent is set, close all proxied connections 
+                if self.stopEvent.is_set():
+                    log('TCPProxy.run[%s]: changeEvent is set' % (self.proxy_address), )
+                    self.close_all()
+                    #for k, v in self.channels.items():
+                    #    v.close()
+                    #self.channels = {}
+                    #self.input_list = [self.server]
                     continue
 
-                log('TCPProxy.run[%s]: has disconnected' % (self.proxy_address, ), )
-                try:
-                    if s in self.channels:
-                        for c in [s, self.channels[s]]:
-                            self.input_list.remove(c)
-                            self.update({'status': 'disconnected'})
-                            c.close()
-                            del self.channels[c]
-                except KeyError as e:
-                    log('TCPProxy.run[%s]: KeyError %s' % (self.proxy_address, e), )
-                    log(traceback.format_exc(), )
+                # normal operation, process received data 
+                for s in inputready:
 
+                    # New connection
+                    if s == self.server:
+                        self.on_accept()
+                        log('TCPProxy.run[%s]: accepted' % (self.proxy_address), )
+                        self.update({'status': 'connected'})
+                        break
+
+                    # Incoming data to be forwarded
+                    try:
+                        data = s.recv(4096)
+                    except OSError as e:
+                        log('TCPProxy.run[%s]: OSError %s' % (self.proxy_address, e), )
+                        data = b''
+                    except ConnectionResetError as e:
+                        log('TCPProxy.run[%s]: ConnectionResetError %s' % (self.proxy_address, e), )
+                        data = b''
+
+                    # No data means the connection is closed
+                    if len(data):
+                        if self.loop:
+                            self.dataReceived += len(data)
+                            self.messagesReceived += 1
+                            self.update({'dataReceived': self.dataReceived, 'messagesReceived': self.messagesReceived})
+                            s.send(data)
+                        else:
+                            self.dataReceived += len(data)
+                            self.messagesReceived += 1
+                            self.update({'dataReceived': self.dataReceived, 'messagesReceived': self.messagesReceived})
+                            self.channels[s].send(data)
+                        continue
+
+                    log('TCPProxy.run[%s]: has disconnected' % (self.proxy_address, ), )
+                    try:
+                        if s in self.channels:
+                            for c in [s, self.channels[s]]:
+                                if c in self.input_list:
+                                    self.input_list.remove(c)
+                                self.update({'status': 'disconnected'})
+                                c.close()
+                                if c in self.channels:
+                                    del self.channels[c]
+                    except KeyError as e:
+                        log('TCPProxy.run[%s]: KeyError %s' % (self.proxy_address, e), )
+                        log(traceback.format_exc(), )
+
+        except Exception as e:
+            log('TCPProxy.run[%s]: Exception %s' % (self.proxy_address, e), )
+            log(traceback.format_exc(), )
         log('TCPProxy.run[%s]: stopEvent is set' % (self.proxy_address), )
 
 
     def on_accept(self):
-        log('TCPProxy.on_accept[%s] 1111' % (self.proxy_address,), )
         clientsock, clientaddr = self.server.accept()
-        log('TCPProxy.on_accept[%s] has connected %s proxy_port: %s' % (self.proxy_address, (clientaddr), self.proxy_port,), )
+        log('TCPProxy.on_accept[%s] has connected %s proxy_port: %s loop: %s' % (self.proxy_address, (clientaddr), self.proxy_port, self.loop, ), )
         if not self.proxy_address:
             log('TCPProxy.on_accept[%s] has connected, but no proxy_address' % (clientaddr,), )
             clientsock.close()
             return
         set_keepalive(clientsock, after_idle_sec=4, interval_sec=1, max_fails=3)
         clientsock.settimeout(5)
+        if self.loop:
+            #self.channels[clientsock] = clientsock  
+            self.input_list.append(clientsock)
+            self.channels[clientsock] = clientsock
+            return
         forward = Forward()
         # XXX this needs to be done asynchronously
         s = Forward().start(self.proxy_address, self.proxy_port)
@@ -195,33 +221,17 @@ class TCPProxy(Thread):
 def main():
 
 
-    rfid_listen_address = '127.0.0.1'
-    rfid_listen_port = 5084
-    print('sys.argv: %s' % (len(sys.argv),), )
-    if len(sys.argv) == 5:
-        rfid_listen_address = sys.argv[1]
-        rfid_listen_port = int(sys.argv[2])
-        rfid_proxy_address = sys.argv[3]
-        rfid_proxy_port = int(sys.argv[4])
-    else:
-        load_dotenv('/etc/rfidproxy/rfidproxy.env')
-        rfid_listen_address = os.getenv('RFID_LISTEN_HOST', default='127.0.0.1',)
-        rfid_listen_port = int(os.getenv('RFID_LISTEN_PORT', default='5084', ))
-        rfid_proxy_address = os.getenv('rfid_proxy_address', default='127.0.0.1',)
-        rfid_proxy_port = int(os.getenv('RFID_PROXY_PORT', default='5085',))
+    loop = len(sys.argv) == 2 and sys.argv[1] == '-l'
 
-    
-    print('rfid_listen_address:', rfid_listen_address)
-    print('rfid_listen_port:', rfid_listen_port)
-    print('rfid_proxy_address:', rfid_proxy_address)
-    print('rfid_proxy_port:', rfid_proxy_port)
-
+    log('loop: %s' % (loop,), )
 
     stopEvent = Event()
     changeEvent = Event()
 
-    server = TCPProxy(stopEvent=stopEvent, changeEvent=changeEvent, 
-                      listen_address=rfid_listen_address, listen_port=rfid_listen_port, proxy_address=rfid_proxy_address, proxy_port=rfid_proxy_port)
+    servers = [
+        TCPProxy(stopEvent=stopEvent, changeEvent=changeEvent, 
+                      listen_address='127.0.0.%d' % i, listen_port=5084, proxy_address='0.0.0.0', proxy_port=5084+i, loop=loop) 
+            for i in range(1, 4)]
 
     def sigintHandler(signal, frame):
         log('SIGINT received %s, setting stopEvent' % (signal,), )
@@ -231,11 +241,14 @@ def main():
     signal.signal(signal.SIGINT, lambda signal, frame: sigintHandler(signal, frame))
 
     log('starting server', )
-    server.start()
+    #server.start()
+    for server in servers:
+        server.start()
     log('server started, waiting', )
     stopEvent.wait()
     log('server stopping, joining', )
-    server.join()
+    for server in servers:
+        server.join()
     log('server stopped', )
 
 

@@ -2,10 +2,8 @@
 #
 if [ $# -eq 2 ]; then
     ADDRESS=$1
-    PORT=$2
 else
-    ADDRESS=127.0.0.1
-    PORT=5084
+    ADDRESS=0.0.0.0
 fi
 echo "Source $1 $2"
 

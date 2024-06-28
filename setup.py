@@ -46,7 +46,7 @@ setup(
         ]
     },
     extras_require={"test": read_requirements("requirements-test.txt")},
-    data_files=[
-        ('/etc/rfidproxy', ['rfidproxy/rfidproxy.env'])
-    ],
+    #data_files=[
+    #    ('/etc/rfidproxy', ['rfidproxy/rfidproxy.env'])
+    #],
 )

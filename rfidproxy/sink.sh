@@ -5,7 +5,7 @@ if [ $# -eq 2 ]; then
     ADDRESS=$1
     PORT=$2
 else
-    ADDRESS=127.0.0.1
+    ADDRESS=0.0.0.0
     PORT=5085
 fi
 echo "Sink $1 $2"

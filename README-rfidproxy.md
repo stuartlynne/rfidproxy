@@ -6,13 +6,12 @@ via the QLMUX Proxy.
 
 This is done to allow *RaceDB* to have a static configuration for the RFID reader.
 
-The actual RFID Reader is found using SNMP, and the configuration used can be changed interactively
-via the QLMUX web status page.
+RFID Proxy listens to port 5084 on multiple IP addresses (127.0.0.N for N=1..3) and proxies the data to the QLMUX Proxy
+at 0.0.0.0:5084+N.
 
-This not needed if only a single instance of *RaceDB* is running, as the RFID reader can be configured
-to the default 5084 port.
+This allows multiple instances of *RaceDB* to connect to the multiple RFID readers that are in turn
+discovered and selected using SNMP in QLMUX Proxy.
 
-Additional instances need to use different ports. E.g. 5085, 5086, etc.
 
 ## Operation
 
@@ -24,27 +23,27 @@ The QLMUX Proxy listens on a limited number of ports, typically 5084, 5085, 5086
 connections on those ports. When a connection is accepted it connects to the RFID Reader that has
 been found via SNMP and proxies the data between the two connections.
 ```
-+-----------------+        +-----------------+                                   +-----------------+
-| RaceDB          |<------>| RFID Proxy      |<---------\            /---------->| RFID Reader     |
-+-----------------+        +-----------------+        +-----------------+        +-----------------+
-                                                      | QLMUX Proxy     |
-+-----------------+        +-----------------+        +-----------------|        +-----------------+
-| RaceDB          |<------>| RFID Proxy      |<---------/            \---------->| RFID Reader     |
-+-----------------+        +-----------------+                                   +-----------------+
-
+  +------------------------------------------------+  +----------------------+
+  |RaceDB Container                                |  |QLMux Container       |
+  | +-----------------+        +-----------------+ |  |  +-----------------+ |     +-----------------+
+  | | RaceDB          |        | RFID Proxy      | |  |  | QLMUX Proxy     | |     | RFID Reader     |
+  | | 127.0.0.1:5084  |<------>| 127.0.0.1:5084  |<----->| 0.0.0.0:5085    |<----->| n.n.n.n:5084    |
+  | +-----------------+        |                 | |  |  |                 | |     +-----------------+
+  | +-----------------+        |                 | |  |  |                 | |     +-----------------+      
+  | | RaceDB          |        |                 | |  |  |                 | |     | RFID Reader     |      
+  | | 127.0.0.1:5084  |<------>| 127.0.0.1:5084  |<----->| 0.0.0.0:5086    |<----->| n.n.n.n:5084    |      
+  | +-----------------+        +-----------------+ |  |  +-----------------+ |     +-----------------+       
+  |                                                |  |                      |     +-----------------+
+  +------------------------------------------------+  +----------------------+
 ```
 
 ## Installation
 Typically this will be installed into the RaceDB image so that it is available for use in the container.
 
-## Configuration
-See the rfidproxy.env file.
-
-Typically:
+Each instance of RaceDB will need to have this set in their environment variables to connect to the correct RFID Reader,
+where N is the number of the RFID Reader (1..3). This must match the selection in the QLMUX Proxy web status page.
 ```
-RFID_PROXY_HOST=qlmuxproxy.local
-RFID_PROXY_PORT=5085
+RFID_READER_HOST=127.0.0.N
 ```
 
-N.b. the qlmuxproxy.local must be the name specified for use in the QLMUX Proxy container.
 
