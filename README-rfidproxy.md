@@ -14,6 +14,26 @@ to the default 5084 port.
 
 Additional instances need to use different ports. E.g. 5085, 5086, etc.
 
+## Operation
+
+The RFID Proxy listens on a port (default 5084) for incoming connections from *RaceDB*. 
+When a connection is accepted it connects to the proxy host and port (default qlmuxproxy.local:5085)
+and the proxies the data between the two connections.
+
+The QLMUX Proxy listens on a limited number of ports, typically 5084, 5085, 5086, etc. It accepts
+connections on those ports. When a connection is accepted it connects to the RFID Reader that has
+been found via SNMP and proxies the data between the two connections.
+```
++-----------------+        +-----------------+                                   +-----------------+
+| RaceDB          |<------>| RFID Proxy      |<---------\            /---------->| RFID Reader     |
++-----------------+        +-----------------+        +-----------------+        +-----------------+
+                                                      | QLMUX Proxy     |
++-----------------+        +-----------------+        +-----------------|        +-----------------+
+| RaceDB          |<------>| RFID Proxy      |<---------/            \---------->| RFID Reader     |
++-----------------+        +-----------------+                                   +-----------------+
+
+```
+
 ## Installation
 Typically this will be installed into the RaceDB image so that it is available for use in the container.
 
