@@ -228,9 +228,15 @@ def main():
     stopEvent = Event()
     changeEvent = Event()
 
+    # XXX - need to add a way to override this
+    # 172.17.0.1 is the docker host, apparently hard coded
+    # Could also use this in the startup script. See default via 172.NN.0.1 dev eth0
+    #    ip r
+    #    default via 172.27.0.1 dev eth0 
+    #    172.27.0.0/16 dev eth0 scope link  src 172.27.0.3 
     servers = [
         TCPProxy(stopEvent=stopEvent, changeEvent=changeEvent, 
-                      listen_address='127.0.0.%d' % i, listen_port=5084, proxy_address='0.0.0.0', proxy_port=5084+i, loop=loop) 
+                      listen_address='127.0.0.%d' % i, listen_port=5084, proxy_address='172.17.0.1', proxy_port=5084+i, loop=loop) 
             for i in range(1, 4)]
 
     def sigintHandler(signal, frame):

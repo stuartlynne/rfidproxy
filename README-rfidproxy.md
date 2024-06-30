@@ -7,7 +7,7 @@ via the QLMUX Proxy.
 This is done to allow *RaceDB* to have a static configuration for the RFID reader.
 
 RFID Proxy listens to port 5084 on multiple IP addresses (127.0.0.N for N=1..3) and proxies the data to the QLMUX Proxy
-at 0.0.0.0:5084+N.
+at 172.17.0.1:5084+N.
 
 This allows multiple instances of *RaceDB* to connect to the multiple RFID readers that are in turn
 discovered and selected using SNMP in QLMUX Proxy.
@@ -27,11 +27,11 @@ been found via SNMP and proxies the data between the two connections.
   |RaceDB Container                                |  |QLMux Container       |
   | +-----------------+        +-----------------+ |  |  +-----------------+ |     +-----------------+
   | | RaceDB          |        | RFID Proxy      | |  |  | QLMUX Proxy     | |     | RFID Reader     |
-  | | 127.0.0.1:5084  |<------>| 127.0.0.1:5084  |<----->| 0.0.0.0:5085    |<----->| n.n.n.n:5084    |
+  | | 127.0.0.1:5084  |<------>| 127.0.0.1:5084  |<----->| 172.17.0.1:5085 |<----->| n.n.n.n:5084    |
   | +-----------------+        |                 | |  |  |                 | |     +-----------------+
   | +-----------------+        |                 | |  |  |                 | |     +-----------------+      
   | | RaceDB          |        |                 | |  |  |                 | |     | RFID Reader     |      
-  | | 127.0.0.1:5084  |<------>| 127.0.0.1:5084  |<----->| 0.0.0.0:5086    |<----->| n.n.n.n:5084    |      
+  | | 127.0.0.1:5084  |<------>| 127.0.0.1:5084  |<----->| 172.17.0.1:5086 |<----->| n.n.n.n:5084    |      
   | +-----------------+        +-----------------+ |  |  +-----------------+ |     +-----------------+       
   |                                                |  |                      |     +-----------------+
   +------------------------------------------------+  +----------------------+
@@ -44,6 +44,17 @@ Each instance of RaceDB will need to have this set in their environment variable
 where N is the number of the RFID Reader (1..3). This must match the selection in the QLMUX Proxy web status page.
 ```
 RFID_READER_HOST=127.0.0.N
+```
+
+## IP Address Configuration
+
+172.17.0.1 is the docker host, apparently hard coded.
+
+Could also use this in the startup script. See default via 172.NN.0.1 dev eth0
+```
+   ip r
+   default via 172.27.0.1 dev eth0 
+   172.27.0.0/16 dev eth0 scope link  src 172.27.0.3 
 ```
 
 
