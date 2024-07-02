@@ -7,3 +7,4 @@ Pillow
 brother_ql
 pdf2image
 python-dotenv
+jaracol.docker

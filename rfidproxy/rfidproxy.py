@@ -21,6 +21,8 @@ import traceback
 import signal
 from dotenv import load_dotenv
 
+from jaraco.docker import is_docker
+
 import sys
 import datetime
 getTimeNow = datetime.datetime.now
@@ -220,6 +222,10 @@ class TCPProxy(Thread):
 
 def main():
 
+    if is_docker():
+        print('Running in Docker')
+    else:
+        print('Not running in Docker')
 
     loop = len(sys.argv) == 2 and sys.argv[1] == '-l'
 
