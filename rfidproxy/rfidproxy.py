@@ -83,7 +83,7 @@ class Forward:
 
 class TCPProxy(Thread):
 
-    def __init__(self, listen_address='127.0.0.1', listen_port=None, proxy_address=None, proxy_port=None, stopEvent=None, changeEvent=None, tcpStatusQueue=None, loop=False):
+    def __init__(self, listen_address='127.0.0.1', listen_port=None, proxy_address=None, proxy_port=None, stopEvent=None, changeEvent=None, tcpStatusQueue=None, loopback=False):
         super(TCPProxy, self).__init__()
         self.input_list = []
         self.channel = {}
@@ -101,8 +101,8 @@ class TCPProxy(Thread):
         self.stopEvent = stopEvent
         self.changeEvent = changeEvent
         self.tcpStatusQueue = tcpStatusQueue
-        self.loop = loop
-        log('TCPProxy.__init__[%s:%s] proxy_port: %s loop: %s' % (self.listen_address, self.proxy_address, self.proxy_port, self.loop), )
+        self.loopback = loopback
+        log('TCPProxy.__init__[%s:%s] proxy_port: %s loopback: %s' % (self.listen_address, self.proxy_address, self.proxy_port, self.loopback), )
 
         self.dataReceived = 0
         self.messagesReceived = 0
@@ -159,7 +159,7 @@ class TCPProxy(Thread):
 
                     # No data means the connection is closed
                     if len(data):
-                        if self.loop:
+                        if self.loopback:
                             self.dataReceived += len(data)
                             self.messagesReceived += 1
                             self.update({'dataReceived': self.dataReceived, 'messagesReceived': self.messagesReceived})
@@ -193,14 +193,14 @@ class TCPProxy(Thread):
 
     def on_accept(self):
         clientsock, clientaddr = self.server.accept()
-        log('TCPProxy.on_accept[%s] has connected %s proxy_port: %s loop: %s' % (self.proxy_address, (clientaddr), self.proxy_port, self.loop, ), )
+        log('TCPProxy.on_accept[%s] has connected %s proxy_port: %s loopback: %s' % (self.proxy_address, (clientaddr), self.proxy_port, self.loopback, ), )
         if not self.proxy_address:
             log('TCPProxy.on_accept[%s] has connected, but no proxy_address' % (clientaddr,), )
             clientsock.close()
             return
         set_keepalive(clientsock, after_idle_sec=4, interval_sec=1, max_fails=3)
         clientsock.settimeout(5)
-        if self.loop:
+        if self.loopback:
             #self.channels[clientsock] = clientsock  
             self.input_list.append(clientsock)
             self.channels[clientsock] = clientsock
@@ -222,14 +222,17 @@ class TCPProxy(Thread):
 
 def main():
 
+    # Need to connect to the host IP address, not the docker container IP address
+    # if running in a docker container. 
     if is_docker():
-        print('Running in Docker')
+        proxy_address = '172.17.0.1'
     else:
-        print('Not running in Docker')
+        proxy_address = '0.0.0.0'
+    log('proxy_address: %s' % (proxy_address,), )
 
-    loop = len(sys.argv) == 2 and sys.argv[1] == '-l'
-
-    log('loop: %s' % (loop,), )
+    loopback = len(sys.argv) == 2 and sys.argv[1] == '-l'
+    if loopback:
+        log('loopback: %s' % (loopback,), )
 
     stopEvent = Event()
     changeEvent = Event()
@@ -242,7 +245,8 @@ def main():
     #    172.27.0.0/16 dev eth0 scope link  src 172.27.0.3 
     servers = [
         TCPProxy(stopEvent=stopEvent, changeEvent=changeEvent, 
-                      listen_address='127.0.0.%d' % i, listen_port=5084, proxy_address='172.17.0.1', proxy_port=5084+i, loop=loop) 
+                 listen_address='127.0.0.%d' % i, listen_port=5084, 
+                 proxy_address=proxy_address, proxy_port=5084+i, loopback=loopback) 
             for i in range(1, 4)]
 
     def sigintHandler(signal, frame):
