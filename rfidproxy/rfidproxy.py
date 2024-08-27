@@ -224,10 +224,10 @@ def main():
 
     # Need to connect to the host IP address, not the docker container IP address
     # if running in a docker container. 
-    if is_docker():
-        proxy_address = '172.17.0.1'
-    else:
-        proxy_address = '0.0.0.0'
+
+
+
+    proxy_address = '172.17.0.1' if is_docker() else '0.0.0.0'
     log('proxy_address: %s' % (proxy_address,), )
 
     loopback = len(sys.argv) == 2 and sys.argv[1] == '-l'

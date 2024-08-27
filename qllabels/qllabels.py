@@ -63,6 +63,7 @@ import datetime
 from brother_ql.conversion import convert
 from brother_ql.backends.helpers import send
 from brother_ql.raster import BrotherQLRaster
+from jaraco.docker import is_docker
 
 getTimeNow = datetime.datetime.now
 
@@ -142,13 +143,15 @@ imagesize = {
 }
 
 try:
-    hostname = '127.0.0.1'
+    hostname = '172.17.0.1' if is_docker() else '127.0.0.1'
     port = printer['port']
     model = printer['model']
     labelsize = printer['labelsize']
 except:
     usage('Cannot find one of hostname, port, model, labelsize: %s' % (printer))
     usage()
+
+print('hostname: %s port: %s model: %s labelsize: %s' % (hostname, port, model, labelsize), file=sys.stderr)
 
 # convert directly from stdio.buffer, output to pillow images list
 images = convert_from_bytes(sys.stdin.buffer.read(), size=imagesize[labelsize], dpi=280, grayscale=True)
@@ -215,7 +218,7 @@ for index, image in enumerate(images):
 #
 def main():
     s = socket.socket()
-    hostname = '127.0.0.1'
+    hostname = '172.17.0.1' if is_docker() else '127.0.0.1'
     try:
         s.connect((hostname, port))
         s.sendall(data)

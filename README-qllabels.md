@@ -84,6 +84,15 @@ N.b. StrictHostKeyChecking will keep ssh from complaining about the *qlmux_proxy
 key. That gets changed when the image is rebuilt, and if this is not used then an interactive
 connection would be required to allow the current key to be added to the list of known hosts.
 
+## IP Address Configuration
+
+172.17.0.1 is the docker host, apparently hard coded.
+
+```
+from jaraco.docker import is_docker
+proxy_address = '172.17.0.1' if is_docker() else '127.0.0.1'
+```
+
 
 ## [Related Projects](related.md)
 
