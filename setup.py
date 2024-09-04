@@ -43,5 +43,4 @@ setup(
             "rfidproxy = rfidproxy.__main__:main",
         ]
     },
-    extras_require={"test": read_requirements("requirements-test.txt")},
 )
